@@ -97,7 +97,8 @@ class PCBCExperimentalMetadata(ExperimentalMetadata):
         if self.meta is None:
             self()
 
-        keepcols = ["name", "id", "benefactorId", "UID", "C4_Cell_Line_ID", "Diffname short", "dataType", "fileType"]
+        keepcols = ["name", "id", "benefactorId", "UID", "C4_Cell_Line_ID",
+                    "Diffname short", "dataType", "fileType"]
         self.meta[keepcols].to_csv(of, sep="\t", index=False)
 
 class MRNAMetadata(PCBCExperimentalMetadata):
