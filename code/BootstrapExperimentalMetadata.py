@@ -1,7 +1,7 @@
 """Experimental metadata from Synapse files and annotations.
 
-Currently specific for PCBC to assist with bootstrapping the annotations,
-and enforce that particular 
+Currently specific for PCBC to assist with bootstrapping the Synapse file annotations.
+
 Kenneth Daily, 2014
 
 """
@@ -20,63 +20,90 @@ class ExperimentalMetadata(object):
         self.syn = synclient
 
 class PCBCExperimentalMetadata(ExperimentalMetadata):
-    _LIMIT_IDS = (1773109, 2249208)
+    """Defines access to Synapse file annotations and manually created file metadata.
 
+    The annotations come from a query defined by a class attribute (_QUERY).
+
+    The metadata comes from a Synapse file defined by its ID (_MANUAL_META_ID).
+
+    Only those that have a benefactor id in _LIMIT_IDS are kept (since query cannot have an OR statement)
+    
+    These are merged to create the minimum required metadata for PCBC files.
+    
+    """
+    
+    _LIMIT_IDS = (1773109, 2249208)
+    
     _PCBC_PRIVATE_ID = 2249208
     _PCBC_PUBLIC_ID = 1773109
     
     # possible differentation state suffixes
     _DIFF_STATES = ('DE', 'EB', 'MESO', 'ECTO')
-
+    
     def __init__(self, synclient):
-        ExperimentalMetadata.__init__(self, synclient)
+        super(PCBCExperimentalMetadata, self).__init__(synclient)
         self.meta = None
-
+    
     def __call__(self):
-
-        self.meta = self.getAnnotations()
+        
+        self.meta = self.makeMetadata()
         
         return self.meta
     
     @staticmethod
     def fixRow(row):
         """Get the first item from column values with more than one.
-    
+        
         """
-    
+        
         for k, v in row.iteritems():
             if type(v) == list:
-                row[k] = v[0]
-    
+                row[k] = ",".join(v)
+        
         return row
-
+    
     @staticmethod
     def cleanColumnNames(x):
         if x.startswith("entity"):
             cleancol = x.split("entity.")[1]
         else:
             cleancol = x
-
+        
         return cleancol
-
-    def _getAnnotations(self, query):
-        pcbcmeta_qry = self.syn.query(query)
     
-        pcbcmeta = map(lambda x: self.fixRow(x),
-                    pcbcmeta_qry['results'])
+    def getAnnotations(self, query):
+        """Run a query to get the annotations, clean up the rows.
+
+        Only returns things that have a benefactorId in _LIMIT_IDS.
+        
+        Returns: pandas.DataFrame
+        
+        """
+        
+        # This is a large query, so need to chunk it
+        # Make a temporary dict so it looks the same
+        qr = self.syn.chunkedQuery(query)
+        pcbcmeta = map(self.fixRow, qr)
         
         pcbcmeta = pd.DataFrame(pcbcmeta)
-    
+        
         # Remove entity prefix from column names
         pcbcmeta.rename(columns=self.cleanColumnNames,
                         inplace=True)
-
+        
         # Only those that are in the PCBC project
         pcbcmeta = pcbcmeta[pcbcmeta['benefactorId'].isin(self._LIMIT_IDS)]
-
+        
         return pcbcmeta
 
-    def getAnnotations(self):
+    def getManualMetadata(self):
+        """Get the manually defined metadata from a synapse file defined by _MANUAL_META_ID
+
+        Unique ID (UID) defined by _MANUAL_UID.
+        Index for merging defined by _MANUAL_IDX.
+        
+        """
+        
         manual_meta = pd.read_csv(self.syn.get(self._MANUAL_META_ID).path, sep='\t')
         manual_meta['UID'] = manual_meta[self._MANUAL_UID]
         manual_meta.set_index(self._MANUAL_IDX, inplace=True)
@@ -84,93 +111,170 @@ class PCBCExperimentalMetadata(ExperimentalMetadata):
         manual_meta.rename(columns=self._COL_RENAME_DICT,
                                 inplace=True)
         
-        annot_meta = self._getAnnotations(self._QUERY)
+        return manual_meta
+
+    def getAnnotationMetadata(self):
+        """Get existing annotation metadata from results of _QUERY. 
+
+        Index set by _ANNOT_IDX.
+        
+        """
+        
+        annot_meta = self.getAnnotations(self._QUERY)
         annot_meta.set_index(self._ANNOT_IDX, inplace=True)
+        
+        return annot_meta
+        
+    def makeMetadata(self):
+        """Get the manually defined metadata file and the annotations and join them.
+        
+        Merges based on _MANUAL_IDX and _ANNOT_IDX.
+        
+        Returns: pandas.DataFrame
+        Sets: instance-level meta attribute.
+        
+        """
+        
+        manual_meta = self.getManualMetadata()
+        annot_meta = self.getAnnotationMetadata()
         
         self.meta = pd.merge(annot_meta, manual_meta,
                              left_index=True, right_index=True)
         
+        # Rename column names, Synapse tables don't play well with spaces
+        self.meta.rename(columns=lambda x: x.replace(" ", "_"), inplace=True)
+        
         return self.meta
 
     def to_csv(self, of):
-
+        """Write merged annotation and manual metadata to a csv.
+        
+        If it hasn't been created, create it first.
+        
+        """
+        
         if self.meta is None:
             self()
-
-        keepcols = ["name", "id", "benefactorId", "UID", "C4_Cell_Line_ID",
-                    "Diffname short", "dataType", "fileType"]
+        
+        keepcols = ["name", "id", "UID", "C4_Cell_Line_ID",
+                    "Diffname_short", "dataType", "fileType"]
+        
         self.meta[keepcols].to_csv(of, sep="\t", index=False)
 
 class MRNAMetadata(PCBCExperimentalMetadata):
+    """Default mRNA metadata using mapped bam files.
+    
+    """
+
     _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='bam' AND dataType=='mRNA' AND bamType=='mapped'"
+
     _MANUAL_META_ID = "syn2278178"
 
     # Set this as the UID column
     _MANUAL_UID = 'Decorated Name'
-
+    
     # For indexing the table
     _MANUAL_IDX = "Decorated Name"
-
+    
     _ANNOT_IDX = 'sampleName'
     _COL_RENAME_DICT = {"CellLine": "C4_Cell_Line_ID"}
 
-    def __call__(self):
+class MRNABamMetadata(MRNAMetadata):
+    """Default mRNA metadata using mapped bam files.
+    
+    """
+    
+    pass
 
-        self.meta = self.getAnnotations()
-        
-        return self.meta
+class MRNABedMetadata(MRNAMetadata):
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='bed' AND dataType=='mRNA'"
+
+class MRNAFastqMetadata(MRNAMetadata):
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='mRNA'"
+
+class MRNAFpkmMetadata(MRNAMetadata):
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fpkm' AND dataType=='mRNA'"
 
 class MIRNAMetadata(PCBCExperimentalMetadata):
+    """Default miRNA metadata.
+    
+    """
+    
     _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='miRNA'"
+    
     _MANUAL_META_ID = "syn2278179"
-
+    
     _MANUAL_UID = 'sample'
     _MANUAL_IDX = "sample"
-
+    
     _ANNOT_IDX = 'sampleName'
     _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
+
+class MIRNAExprMetadata(PCBCExperimentalMetadata):
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='expr' AND dataType=='miRNA'"
     
-
-class MethylMetadata(PCBCExperimentalMetadata):
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where parentId=='syn2653626' AND id!='syn2654330'"
+    _MANUAL_META_ID = "syn2278179"
     
-    _METHYL_FILE_ID = "syn2677043"
-
-    _MANUAL_UID = 'Sample'
-    _MANUAL_IDX = "File"
-
-    _ANNOT_IDX = 'File'
+    _MANUAL_UID = 'sample'
+    _MANUAL_IDX = "sample"
+    
+    _ANNOT_IDX = 'sampleName'
     _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
 
-    # Overloads getAnnotations()
-    def getAnnotations(self):
-        manual_meta = pd.read_csv(self.syn.get(self._METHYL_FILE_ID).path, sep='\t')
-        manual_meta['UID'] = manual_meta[self._MANUAL_UID]
+class MIRNAFastqMetadata(PCBCExperimentalMetadata):
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='miRNA'"
+    
+    _MANUAL_META_ID = "syn2278179"
+    
+    _MANUAL_UID = 'sample'
+    _MANUAL_IDX = "sample"
+    
+    _ANNOT_IDX = 'sampleName'
+    _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
 
-        manual_meta.rename(columns=self._COL_RENAME_DICT,
-                           inplace=True)
-
-        manual_meta.set_index(self._MANUAL_IDX, inplace=True)
+class MethylMetadata(PCBCExperimentalMetadata):
+    """Class for methylation data.
+    
+    Overloads the makeMetadata() to add dataType and fileType annotations.
+    
+    """
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where parentId=='syn2653626' AND id!='syn2654330'"
+    
+    _MANUAL_META_ID = "syn2677043"
+    
+    _MANUAL_UID = 'Sample'
+    _MANUAL_IDX = "File"
+    
+    _ANNOT_IDX = 'File'
+    _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
+    
+    def getAnnotationMetadata(self):
+        """Get existing annotation metadata from results of _QUERY. 
         
-        annot_meta = self._getAnnotations(self._QUERY)
+        Index set by _ANNOT_IDX.
+        
+        Overloaded for MethylMetadata to get an index to merge (File) from the name.
+        
+        """
+        
+        annot_meta = self.getAnnotations(self._QUERY)
         annot_meta['File'] = annot_meta['name'].apply(lambda x: x[:17])
-        # annot_meta = annot_meta.drop_duplicates()
-        
         annot_meta.set_index(self._ANNOT_IDX, inplace=True)
-    
-        annot_meta = pd.merge(annot_meta, manual_meta,
-                            left_index=True, right_index=True)
-
-        # Add some annotations that aren't there now'
-        annot_meta['dataType'] = "methylation"
-        annot_meta['fileType'] = "idat"
-    
+        
         return annot_meta
 
 def to_table(syn, meta, projectId):
+    """Save to a synapse table.
+    
+    """
 
     keepcols = ["name", "id", "UID", "C4_Cell_Line_ID",
-                "Diffname short", "dataType", "fileType"]
+                "Diffname_short", "dataType", "fileType"]
     fortbl = meta[keepcols]
     
     cols = [table.Column(name='name', columnType='STRING', maximumSize=100),
@@ -178,7 +282,7 @@ def to_table(syn, meta, projectId):
             # table.Column(name='benefactorId', columnType='STRING', maximumSize=100),
             table.Column(name='UID', columnType='STRING', maximumSize=100),
             table.Column(name='C4_Cell_Line_ID', columnType='STRING', maximumSize=100),
-            table.Column(name='Diffname short', columnType='STRING', maximumSize=100),
+            table.Column(name='Diffname_short', columnType='STRING', maximumSize=100),
             table.Column(name='dataType', columnType='STRING', maximumSize=20),
             table.Column(name='fileType', columnType='STRING', maximumSize=20)]
         
@@ -189,91 +293,3 @@ def to_table(syn, meta, projectId):
     my_table = syn.store(my_table)
     return my_table
     
-class AllExperimentalMetadata(PCBCExperimentalMetadata):
-
-    _LIMIT_IDS = (1773109, 2249208)
-
-    _PCBC_PRIVATE_ID = 2249208
-    _PCBC_PUBLIC_ID = 1773109
-    
-    _MRNA_QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='bam' AND dataType=='mRNA' AND bamType=='mapped'"
-    
-    _MIRNA_QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='miRNA'"
-    
-    # One file should not be included - it's the array description file: syn2654330
-    _METHYL_QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where parentId=='syn2653626' AND id!='syn2654330'"
-    
-    _METHYL_FILE_ID = "syn2677043"
-    _MRNA_MANUAL_META_ID = "syn2278178"
-    _MIRNA_MANUAL_META_ID = "syn2278179"
-    
-    # possible differentation state suffixes
-    _DIFF_STATES = ('DE', 'EB', 'MESO', 'ECTO')
-
-    def __init__(self, synclient):
-        ExperimentalMetadata.__init__(self, synclient)
-        self.pcbcmeta = None
-        
-    def __call__(self):
-
-        pcbc_mrna = self.getMRNAAnnotations()
-        pcbc_mirna = self.getMIRNAAnnotations()
-        pcbc_methyl = self.getMethylAnnotations()
-        
-        pcbc_sample_metadata = pd.concat([pcbc_mrna, pcbc_mirna, pcbc_methyl],
-                                         ignore_index=True)
-
-        self.pcbcmeta = pcbc_sample_metadata
-        return self.pcbcmeta
-
-
-    def getMethylAnnotations(self):
-        # Fetch manually curated methylation data
-        methyl_manual_meta = pd.read_csv(self.syn.get(self._METHYL_FILE_ID).path, sep='\t')
-        methyl_manual_meta['UID'] = methyl_manual_meta['Sample']
-        methyl_manual_meta.rename(columns={"C4 Cell Line ID": "C4_Cell_Line_ID"},
-                                inplace=True)
-        methyl_manual_meta.set_index(['File'], inplace=True)
-    
-        pcbc_methyl = self._getAnnotations(self._METHYL_QUERY)
-        pcbc_methyl['File'] = pcbc_methyl['name'].apply(lambda x: x[:17])
-        pcbc_methyl = pcbc_methyl.drop_duplicates()
-        pcbc_methyl.set_index('File', inplace=True)
-    
-        pcbc_methyl = pd.merge(pcbc_methyl, methyl_manual_meta,
-                            left_index=True, right_index=True)
-        pcbc_methyl['dataType'] = "methylation"
-        pcbc_methyl['fileType'] = "idat"
-    
-        return pcbc_methyl
-    
-    def getMRNAAnnotations(self):
-        # Fetch manually curated metadata
-        mrna_manual_meta = pd.read_csv(self.syn.get(self._MRNA_MANUAL_META_ID).path, sep='\t')
-        mrna_manual_meta['UID'] = mrna_manual_meta['Decorated Name']
-        mrna_manual_meta.set_index(['Decorated Name'], inplace=True)
-        mrna_manual_meta.rename(columns={"CellLine": "C4_Cell_Line_ID"},
-                                inplace=True)
-    
-        pcbc_mrna = self._getAnnotations(self._MRNA_QUERY)
-        pcbc_mrna.set_index(['sampleName'], inplace=True)
-    
-        pcbc_mrna = pd.merge(pcbc_mrna, mrna_manual_meta,
-                            left_index=True, right_index=True)
-    
-        return pcbc_mrna
-    
-    def getMIRNAAnnotations(self):
-        mirna_manual_meta = pd.read_csv(self.syn.get(self._MIRNA_MANUAL_META_ID).path, sep='\t')
-        mirna_manual_meta['UID'] = mirna_manual_meta['sample']
-        mirna_manual_meta.set_index('sample', inplace=True)
-        mirna_manual_meta.rename(columns={"C4 Cell Line ID": "C4_Cell_Line_ID"},
-                                inplace=True)
-        
-        pcbc_mirna = self._getAnnotations(self._MIRNA_QUERY)
-        pcbc_mirna.set_index(['sampleName'], inplace=True)
-        
-        pcbc_mirna = pd.merge(pcbc_mirna, mirna_manual_meta,
-                            left_index=True, right_index=True)
-        
-        return pcbc_mirna
