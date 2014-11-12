@@ -33,19 +33,18 @@ def main():
     args = parser.parse_args()
     syn = synapseclient.login(silent=True)
     
-    a = PCBCAnnotations.PCBCAnnotationTableUpdate(syn)
-
+    annots = PCBCAnnotations.PCBCAnnotations(syn)
+    a = PCBCAnnotations.PCBCAnnotationTableUpdate(syn, annots)
+    
     my_synapse_id = None
-
+    
     if not args.dryrun:
         my_synapse_id = synapseHelpers.thisCodeInSynapse(parentId='syn2758110', syn=syn)
-
+    
     a.update_annots_synapse(executed=my_synapse_id, dryrun=args.dryrun)
-
-    if args.storetable:
-        tbl = a.update_annots_table_table(projectId=args.projectId, dryrun=args.dryrun)
-
-
+    
+    # if args.storetable:
+    #     tbl = a.update_annots_table_synapse(projectId=args.projectId, dryrun=args.dryrun)
 
 if __name__ == "__main__":
     main()
