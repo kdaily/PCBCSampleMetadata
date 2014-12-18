@@ -198,6 +198,10 @@ class MRNAFpkmMetadata(MRNAMetadata):
     
     _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fpkm' AND dataType=='mRNA'"
 
+class MRNAHTSeqCountMetadata(MRNAMetadata):
+    
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='count' AND dataType=='mRNA'"
+
 class MIRNAMetadata(PCBCExperimentalMetadata):
     """Default miRNA metadata.
     
