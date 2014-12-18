@@ -134,7 +134,11 @@ class PCBCAnnotationTableUpdate(object):
         self.curr_annots = self.curr_annots[self.curr_annots["parentId"].isin(self._INPUT_PARENT_IDS)]
         self.curr_annots = self.curr_annots[self._OUTPUT_COLS]
         
-    def update_annots_synapse(self, executed=None, dryrun=False):
+    def update_annots_synapse(self, parentId=None, executed=None, dryrun=False):
+
+        if not parentId:
+            parentId = self._OUTPUT_PARENT_ID
+        
         self._get_annotations()
         
         self.curr_annots.to_csv(self._FILENAME, sep='\t', index=False)
