@@ -196,18 +196,18 @@ class PCBCAllAnnotationTableUpdate(PCBCAnnotationTableUpdate):
     _TABLE_NAME = 'PCBC Public All Metadata'
 
     _OUTPUT_COLS = ["id", "name", "PCBC_Cell_Line_Name",
-             "Host_Species", "UID", "C4_Cell_Line_ID", "Diffname_short",
-             "dataType", "fileType", "Originating_Lab_ID",
-             "Public_Data", "Cell_Type", "Cell_Line_Type",
-             "Cell_Type_of_Origin", "Cell_Line_of_Origin", "Tissue_of_Origin",
-             "Reprogramming_Vector_Type", "Reprogramming_Gene_Combination",
-             "Culture_Conditions", "Small_Molecules",
-             "Other_Conditions_During_Reprogramming", "Donor_Life_Stage", "Race",
-             "Ethnicity", "Gender", "Disease", "Donor_Phenotype", "Genotype",
-             "C4_Karyotype_Result", "Originating_Lab",
-             "Other_Significant_Contributors_to_line_generation",
-             "Pubmed_ID", "DOI", "Donor_Cell_Link", "High_Confidence_Donor_ID"
-         ]
+                    "Host_Species", "UID", "C4_Cell_Line_ID", "Diffname_short",
+                    "dataType", "fileType", "Originating_Lab_ID",
+                    "Public_Data", "Cell_Type", "Cell_Line_Type",
+                    "Cell_Type_of_Origin", "Cell_Line_of_Origin", "Tissue_of_Origin",
+                    "Reprogramming_Vector_Type", "Reprogramming_Gene_Combination",
+                    "Culture_Conditions", "Small_Molecules",
+                    "Other_Conditions_During_Reprogramming", "Donor_Life_Stage", "Race",
+                    "Ethnicity", "Gender", "Disease", "Donor_Phenotype", "Genotype",
+                    "C4_Karyotype_Result", "Originating_Lab",
+                    "Other_Significant_Contributors_to_line_generation",
+                    "Pubmed_ID", "DOI", "Donor_Cell_Link", "High_Confidence_Donor_ID"
+                ]
 
     _TABLE_COLS = [table.Column(name='name', columnType='STRING', maximumSize=100),
                    table.Column(name='id', columnType='ENTITYID'),
