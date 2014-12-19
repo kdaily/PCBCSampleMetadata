@@ -22,7 +22,8 @@ def main():
     
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--configPath", default=synapseclient.client.CONFIG_FILE)
+    parser.add_argument("--configPath", type=str, default=synapseclient.client.CONFIG_FILE)
+    parser.add_argument("--filename", type=str, default=None)
     parser.add_argument('--dryrun', action="store_true",
                         default=False,
                         help="Run without making changes [default: %(default)s]")
@@ -46,7 +47,8 @@ def main():
     # if not args.dryrun:
     #     my_synapse_id = synapseHelpers.thisCodeInSynapse(parentId='syn2758110', syn=syn)
     
-    a.update_annots_synapse(parentId=args.parentId, executed=my_synapse_id, dryrun=args.dryrun)
+    a.update_annots_synapse(filename=args.filename,
+                            parentId=args.parentId, executed=my_synapse_id, dryrun=args.dryrun)
     
     if args.storetable:
         tbl = a.update_annots_table_synapse(projectId=args.projectId, dryrun=args.dryrun)
