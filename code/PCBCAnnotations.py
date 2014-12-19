@@ -138,11 +138,12 @@ class PCBCAnnotationTableUpdate(object):
 
         if not parentId:
             parentId = self._OUTPUT_PARENT_ID
-        
+
+        logger.info("parentId: %s" % (parentId, ))
         self._get_annotations()
         
         self.curr_annots.to_csv(self._FILENAME, sep='\t', index=False)
-        myfile = synapseclient.File(self._FILENAME, parentId=self._OUTPUT_PARENT_ID)
+        myfile = synapseclient.File(self._FILENAME, parentId=parentId)
 
         if not dryrun:
             myfile = self.syn.store(myfile, executed=executed)
@@ -174,7 +175,7 @@ class PCBCAllAnnotations(PCBCAnnotations):
 
     _FILENAME = "/tmp/pcbcannotation_public_status_all.tsv"
     _OUTPUT_PARENT_ID = 'syn2805609'
-
+    
     _COLS = ["id", "name", "parentId", "benefactorId", "PCBC_Cell_Line_Name",
              "Host_Species", "UID", "C4_Cell_Line_ID", "Diffname_short",
              "dataType", "fileType", "Originating_Lab_ID",
@@ -195,7 +196,7 @@ class PCBCAllAnnotationTableUpdate(PCBCAnnotationTableUpdate):
 
     _TABLE_NAME = 'PCBC Public All Metadata'
 
-    _OUTPUT_COLS = ["id", "name", "PCBC_Cell_Line_Name",
+    _OUTPUT_COLS = ["id", "parentId", "name", "PCBC_Cell_Line_Name",
                     "Host_Species", "UID", "C4_Cell_Line_ID", "Diffname_short",
                     "dataType", "fileType", "Originating_Lab_ID",
                     "Public_Data", "Cell_Type", "Cell_Line_Type",
@@ -211,6 +212,7 @@ class PCBCAllAnnotationTableUpdate(PCBCAnnotationTableUpdate):
 
     _TABLE_COLS = [table.Column(name='name', columnType='STRING', maximumSize=100),
                    table.Column(name='id', columnType='ENTITYID'),
+                   table.Column(name='parentId', columnType='ENTITYID'),
                    table.Column(name='UID', columnType='STRING', maximumSize=100),
                    table.Column(name='C4_Cell_Line_ID', columnType='STRING',
                                 maximumSize=100),
