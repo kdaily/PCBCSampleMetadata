@@ -10,6 +10,7 @@ import tempfile
 
 import pandas as pd
 import synapseclient
+# from synapseclient import client
 import PCBCAnnotations
 import synapseHelpers
 
@@ -21,6 +22,7 @@ def main():
     
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--configPath", default=synapseclient.client.CONFIG_FILE)
     parser.add_argument('--dryrun', action="store_true",
                         default=False,
                         help="Run without making changes [default: %(default)s]")
@@ -32,7 +34,9 @@ def main():
 
 
     args = parser.parse_args()
-    syn = synapseclient.login(silent=True)
+
+    syn=synapseclient.Synapse(skip_checks=True, configPath=args.configPath)
+    syn.login(silent=True)
     
     annots = PCBCAnnotations.PCBCAllAnnotations(syn)
     a = PCBCAnnotations.PCBCAllAnnotationTableUpdate(syn, annots)
