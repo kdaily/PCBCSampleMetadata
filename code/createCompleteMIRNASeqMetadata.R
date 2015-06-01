@@ -1,6 +1,4 @@
-library(plyr)
 library(dplyr)
-library(reshape2)
 library(synapseClient)
 synapseLogin()
 
@@ -12,35 +10,63 @@ ASSAY_META_ID = 'syn3105814'
 ## Get the cell line metadata
 cellLineMetadataTable <- synGet(CELL_LINE_META_ID)
 cellLineQuery <- paste("SELECT * FROM", cellLineMetadataTable$properties$id)
-cellLineMetadata <- tbl_df(synTableQuery(cellLineQuery, loadResult=TRUE)@values)
+cellLineMetadata <- synTableQuery(cellLineQuery, loadResult=TRUE)@values
 
 # Get sample Metadata
 sampleProcessMetadataTable <- synGet(SAMPLE_META_ID)
 sampleProcessMetadataQuery <- synTableQuery(sprintf("SELECT * FROM %s", sampleProcessMetadataTable$properties$id))
-sampleProcessMetadata  <- tbl_df(sampleProcessMetadataQuery@values)
+sampleProcessMetadata  <- sampleProcessMetadataQuery@values
+
+sampleCols <- c("biologicalSampleName", "C4_Cell_Line_ID", 
+                "Diffname_short", "SampleTypeIncomplete",
+                "SampleType", "SampleTypeNotes",
+                "Replicate", "ReplicateNotes",
+                "ThawDate", "ThawDateNotes",
+                "PassageAtThaw",  "PassageAtThawNotes",
+                "DateRNAHarvested", "RNAHarvestedNotes", "PassageAtHarvest",
+                "DatemiRNAextracted",  "DatemiRNAExtractedNotes",
+                "DateRNASubmittedtoCore", "DateRNASubmittedToCoreNotes", "Notes")
+
+sampleProcessMetadata <- sampleProcessMetadata[, sampleCols]
+
+## Only keep samples that have a non-NA mRNA submitted to core date
+sampleProcessMetadata <- filter(sampleProcessMetadata, tolower(DatemiRNAextracted) != "n/a")
 
 ## Get the assay metadata
 assayMetadataTable <- synGet(ASSAY_META_ID)
 assayQuery <- paste("SELECT * FROM", assayMetadataTable$properties$id)
-assayMetadata <- tbl_df(synTableQuery(assayQuery, loadResult=TRUE)@values)
+assayMetadata <- synTableQuery(assayQuery, loadResult=TRUE)@values
 
-tblAll <- left_join(assayMetadata,
-                    sampleProcessMetadata,
-                    by=c("C4_Cell_Line_ID", "Replicate", "ReplicateIncomplete", 
-                         "biologicalSampleName", "Diffname_short"))
+tblAll <- left_join(assayMetadata, sampleProcessMetadata,
+                    by=c("biologicalSampleName"))
 
 tblAll <- left_join(tblAll, cellLineMetadata, by="C4_Cell_Line_ID")
 
-tc <- as.tableColumns(as.data.frame(tblAll))
+tblAll %>% filter(is.na(C4_Cell_Line_ID)) %>% select(UID,biologicalSampleName,public,pass_qc)
 
-schema <- TableSchema(name="miRNA-Seq Metadata", parent=PROJECT_ID, columns=tc$tableColumns)
+# ## Clean up any duplicates because of problems in sample procesing table
+# ## basically set all fields other than the sample info
+# probCols <- setdiff(colnames(sampleProcessMetadata), 
+#                     c("biologicalSampleName", "C4_Cell_Line_ID", "Diffname_short"))
+# 
+# problemSamples <- tblAll %>% count(UID) %>% filter(n>1)
+# 
+# fixSamples <- tblAll %>% 
+#   filter(UID %in% problemSamples$UID) 
+# 
+# fixSamples[, probCols] <- NA
+# fixSamples <- distinct(fixSamples)
+# 
+# tblAll <- tblAll %>% 
+#   filter(!(UID %in% problemSamples$UID)) %>%
+#   rbind(fixSamples)
 
-tbl <- Table(tableSchema=schema,
-             values=as.data.frame(tblAll))
 
-# tbl <- synGet('syn3156503')
+# tc <- as.tableColumns(as.data.frame(tblAll))
 
-# act <- Activity(name="Table join",
-#                 used=list(sampleProcessMetadataTable, cellLineMetadataTable, assayMetadataTable))
-
-tbl <- synStore(tbl)
+# schema <- TableSchema(name="miRNA-Seq Metadata", parent=PROJECT_ID, columns=tc$tableColumns)
+# 
+# tbl <- Table(tableSchema=schema,
+#              values=as.data.frame(tblAll))
+# 
+# tbl <- synStore(tbl)
