@@ -4,6 +4,8 @@ library(reshape2)
 library(synapseClient)
 synapseLogin()
 
+source("./addExtraColumns.R")
+
 PROJECT_ID <- "syn1773109"
 CELL_LINE_META_ID  <- 'syn2767694'
 SAMPLE_META_ID = 'syn3131513'
@@ -44,6 +46,9 @@ tblAll <- left_join(assayMetadata, sampleProcessMetadata,
                     by=c("biologicalSampleName"))
 
 tblAll <- left_join(tblAll, cellLineMetadata, by="C4_Cell_Line_ID")
+
+tblAll <- tblAll %>% 
+  extraColumns
 
 tblAll %>% filter(is.na(C4_Cell_Line_ID)) %>% select(UID,biologicalSampleName,public)
 
