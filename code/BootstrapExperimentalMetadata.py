@@ -64,8 +64,8 @@ class PCBCExperimentalMetadata(ExperimentalMetadata):
     
     @staticmethod
     def cleanColumnNames(x):
-        if x.startswith("entity"):
-            cleancol = x.split("entity.")[1]
+        if x.startswith("file"):
+            cleancol = x.split("file.")[1]
         else:
             cleancol = x
         
@@ -91,8 +91,8 @@ class PCBCExperimentalMetadata(ExperimentalMetadata):
         pcbcmeta.rename(columns=self.cleanColumnNames,
                         inplace=True)
         
-        # Only those that are in the PCBC project
-        pcbcmeta = pcbcmeta[pcbcmeta['benefactorId'].isin(self._LIMIT_IDS)]
+        # # Only those that are in the PCBC project
+        # pcbcmeta = pcbcmeta[pcbcmeta['benefactorId'].isin(self._LIMIT_IDS)]
         
         return pcbcmeta
 
@@ -176,7 +176,7 @@ class MRNAMetadata(PCBCExperimentalMetadata):
     # For indexing the table
     _MANUAL_IDX = "Decorated Name"
     
-    _ANNOT_IDX = 'sampleName'
+    _ANNOT_IDX = 'UID'
     _COL_RENAME_DICT = {"CellLine": "C4_Cell_Line_ID"}
 
 class MRNABamMetadata(MRNAMetadata):
@@ -188,56 +188,56 @@ class MRNABamMetadata(MRNAMetadata):
 
 class MRNABedMetadata(MRNAMetadata):
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='bed' AND dataType=='mRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='bed' AND dataType=='mRNA'"
 
 class MRNAFastqMetadata(MRNAMetadata):
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='mRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='fastq' AND dataType=='mRNA'"
 
 class MRNAFpkmMetadata(MRNAMetadata):
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fpkm' AND dataType=='mRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='fpkm' AND dataType=='mRNA'"
 
 class MRNAHTSeqCountMetadata(MRNAMetadata):
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='count' AND dataType=='mRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='count' AND dataType=='mRNA'"
 
 class MIRNAMetadata(PCBCExperimentalMetadata):
     """Default miRNA metadata.
     
     """
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='miRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='fastq' AND dataType=='miRNA'"
     
     _MANUAL_META_ID = "syn2278179"
     
     _MANUAL_UID = 'sample'
     _MANUAL_IDX = "sample"
     
-    _ANNOT_IDX = 'sampleName'
+    _ANNOT_IDX = 'UID'
     _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
 
 class MIRNAExprMetadata(PCBCExperimentalMetadata):
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='expr' AND dataType=='miRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='expr' AND dataType=='miRNA'"
     
     _MANUAL_META_ID = "syn2278179"
     
     _MANUAL_UID = 'sample'
     _MANUAL_IDX = "sample"
     
-    _ANNOT_IDX = 'sampleName'
+    _ANNOT_IDX = 'UID'
     _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
 
 class MIRNAFastqMetadata(PCBCExperimentalMetadata):
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where fileType=='fastq' AND dataType=='miRNA'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where fileType=='fastq' AND dataType=='miRNA'"
     
     _MANUAL_META_ID = "syn2278179"
     
     _MANUAL_UID = 'sample'
     _MANUAL_IDX = "sample"
     
-    _ANNOT_IDX = 'sampleName'
+    _ANNOT_IDX = 'UID'
     _COL_RENAME_DICT = {"C4 Cell Line ID": "C4_Cell_Line_ID"}
 
 class MethylMetadata(PCBCExperimentalMetadata):
@@ -247,7 +247,7 @@ class MethylMetadata(PCBCExperimentalMetadata):
     
     """
     
-    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from entity where parentId=='syn2653626' AND id!='syn2654330'"
+    _QUERY = "select sampleName,dataType,id,benefactorId,fileType,name from file where parentId=='syn2653626' AND id!='syn2654330'"
     
     _MANUAL_META_ID = "syn2677043"
     
